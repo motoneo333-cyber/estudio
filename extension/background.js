@@ -72,41 +72,24 @@ function updateBlockingRules() {
         });
     } else {
         // Block the domains
-        // Dynamic rules can be set using updateDynamicRules.
-        // Let's clear existing rules first and add the new ones
+        // Clear existing rules first and add the new ones using clean requestDomains matching
         chrome.declarativeNetRequest.getDynamicRules((rules) => {
             const existingIds = rules.map(r => r.id);
 
-            // Generate rules
+            // Generate rules using standard requestDomains (which automatically matches subdomains)
             const newRules = domainsToBlock.map((domain, index) => {
                 const ruleId = index + 1; // rule IDs must be >= 1
 
-                // Format the domain filter to catch all subdomains and paths
-                // "youtube.com" -> "*://*.youtube.com/*" or "*://youtube.com/*"
-                const urlFilter = `*://${domain}/*`;
-                const urlFilterSub = `*://*.${domain}/*`;
-
-                return [
-                    {
-                        id: ruleId * 2 - 1,
-                        priority: 1,
-                        action: { type: "block" },
-                        condition: {
-                            urlFilter: urlFilter,
-                            resourceTypes: ["main_frame", "sub_frame"]
-                        }
-                    },
-                    {
-                        id: ruleId * 2,
-                        priority: 1,
-                        action: { type: "block" },
-                        condition: {
-                            urlFilter: urlFilterSub,
-                            resourceTypes: ["main_frame", "sub_frame"]
-                        }
+                return {
+                    id: ruleId,
+                    priority: 1,
+                    action: { type: "block" },
+                    condition: {
+                        requestDomains: [domain],
+                        resourceTypes: ["main_frame", "sub_frame"]
                     }
-                ];
-            }).flat();
+                };
+            });
 
             chrome.declarativeNetRequest.updateDynamicRules({
                 removeRuleIds: existingIds,

@@ -1,4 +1,4 @@
-// Content script matching http://localhost:3000/*
+// Content script matching http://localhost:3000/* and Vercel deployments
 // Relays window.postMessage events from Pomodoro Web App to extension's background.js service worker
 
 console.log("Pomodoro extension content.js injected and ready!");
@@ -26,8 +26,13 @@ window.addEventListener("message", (event) => {
     }
 });
 
-// Request initial state from background when loaded to sync extension's state (if background has a newer one)
-// But webapp's localstorage is usually authoritative.
+// Force the Web App to immediately broadcast its current state (authoritative sync) when content script loads
+window.postMessage({
+    source: "pomodoro-extension",
+    action: "REQUEST_SYNC"
+}, "*");
+
+// Request initial state from background when loaded to sync extension's state (fallback)
 chrome.runtime.sendMessage({ action: "GET_CURRENT_STATE" }, (response) => {
     if (chrome.runtime.lastError) return;
     if (response && response.state) {
