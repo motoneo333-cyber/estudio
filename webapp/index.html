@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Lock & Reward</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Urbanist:wght@300;400;600;700;800&display=swap');
+        body {
+            font-family: 'Urbanist', sans-serif;
+        }
+        .font-mono-custom {
+            font-family: 'Share Tech Mono', monospace;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🍅</span>
+                <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">Pomodoro Lock & Reward</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-slate-400">Estado:</span>
+                <span id="state-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-slate-300">
+                    IDLE
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 py-8 flex-grow grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+
+        <!-- Left Panel: Settings & Blocked Domains -->
+        <div class="space-y-6 md:col-span-1">
+            <!-- Configuración -->
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur">
+                <h2 class="text-lg font-semibold mb-4 text-slate-200 flex items-center">
+                    <span class="mr-2">⚙️</span> Configuración
+                </h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1" for="work-duration">
+                            Duración de Trabajo
+                        </label>
+                        <div class="flex space-x-2">
+                            <input type="number" id="work-duration-min" value="25" min="0" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-red-500 text-center" placeholder="Min">
+                            <input type="number" id="work-duration-sec" value="0" min="0" max="59" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-red-500 text-center" placeholder="Seg">
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Configura el tiempo de enfoque.</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-700">
+                        <div class="text-sm font-medium text-slate-400 mb-1">Recompensa Estimada</div>
+                        <div class="text-2xl font-bold text-emerald-400" id="estimated-reward">12:30</div>
+                        <p class="text-xs text-slate-500 mt-1">Fórmula exacta: <code class="bg-slate-900 px-1 py-0.5 rounded text-red-400">N / 2</code> ms acumulados.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dominios Bloqueados -->
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur">
+                <h2 class="text-lg font-semibold mb-4 text-slate-200 flex items-center justify-between">
+                    <span class="flex items-center"><span class="mr-2">🚫</span> Dominios Bloqueados</span>
+                    <span class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full" id="blocked-count">0</span>
+                </h2>
+
+                <form id="add-domain-form" class="mb-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="domain-input" placeholder="ej. youtube.com" class="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-red-500" required>
+                        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors">
+                            Añadir
+                        </button>
+                    </div>
+                </form>
+
+                <div class="max-h-60 overflow-y-auto custom-scrollbar">
+                    <ul id="domain-list" class="space-y-2">
+                        <!-- Items dynamically loaded -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Timer & Core Controls -->
+        <div class="md:col-span-2 flex flex-col justify-between space-y-6">
+            <!-- Timer Card -->
+            <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/50 border border-slate-700/60 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl flex-grow">
+                <!-- State Label -->
+                <div id="timer-state-label" class="text-sm font-semibold tracking-widest uppercase mb-4 text-slate-400">
+                    Listo para comenzar
+                </div>
+
+                <!-- Clock Face -->
+                <div class="relative w-72 h-72 flex items-center justify-center">
+                    <!-- Outer progress track -->
+                    <svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" stroke="#1e293b" stroke-width="4" fill="transparent" />
+                        <circle id="progress-ring" cx="50" cy="50" r="45" stroke="#ef4444" stroke-width="4" fill="transparent" stroke-dasharray="282.7" stroke-dashoffset="0" class="transition-all duration-300" />
+                    </svg>
+
+                    <!-- Digital clock numbers -->
+                    <div class="text-center z-10">
+                        <div id="timer-display" class="text-5xl font-extrabold font-mono-custom tracking-wider text-white">
+                            25:00.00
+                        </div>
+                        <div class="text-xs text-slate-400 mt-2 tracking-wide">MINUTOS : SEGUNDOS</div>
+                    </div>
+                </div>
+
+                <!-- Accumulated reward balance info -->
+                <div class="mt-6 bg-slate-800/80 px-6 py-3 rounded-2xl border border-slate-700 flex justify-between items-center w-full max-w-sm">
+                    <span class="text-sm font-medium text-slate-400">Bolsa de Recompensa:</span>
+                    <span id="reward-balance-display" class="text-lg font-bold text-emerald-400 font-mono-custom">
+                        00:00.00
+                    </span>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-6 shadow-xl flex flex-wrap gap-4 items-center justify-center">
+                <button id="btn-start" class="flex-grow md:flex-none bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center justify-center">
+                    <span class="mr-2">🚀</span> Iniciar Trabajo
+                </button>
+
+                <button id="btn-confirm" class="hidden flex-grow md:flex-none bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95 flex items-center justify-center animate-pulse">
+                    <span class="mr-2">🎉</span> Reclamar Recompensa (Listo)
+                </button>
+
+                <button id="btn-reset" class="hidden flex-grow md:flex-none bg-slate-700 hover:bg-slate-600 text-white font-semibold px-6 py-3.5 rounded-xl transition-all active:scale-95 flex items-center justify-center">
+                    <span class="mr-2">⏹️</span> Reiniciar / Parar
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900 py-6">
+        <div class="max-w-5xl mx-auto px-4 text-center text-sm text-slate-500">
+            Pomodoro Lock & Reward &copy; 2025 - Jules. Todos los derechos reservados.
+        </div>
+    </footer>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>
