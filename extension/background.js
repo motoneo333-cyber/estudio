@@ -83,7 +83,10 @@ function updateBlockingRules() {
                 return {
                     id: ruleId,
                     priority: 1,
-                    action: { type: "block" },
+                    action: {
+                        type: "redirect",
+                        redirect: { extensionPath: "/blocked.html" }
+                    },
                     condition: {
                         requestDomains: [domain],
                         resourceTypes: ["main_frame", "sub_frame"]
@@ -98,7 +101,7 @@ function updateBlockingRules() {
                 if (chrome.runtime.lastError) {
                     console.error("Error updating rules:", chrome.runtime.lastError);
                 } else {
-                    console.log(`Blocking ${domainsToBlock.length} domains. State:`, currentState, "Rules added:", newRules.length);
+                    console.log(`Redirecting ${domainsToBlock.length} domains to blocked.html. State:`, currentState, "Rules added:", newRules.length);
                 }
             });
         });
