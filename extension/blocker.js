@@ -10,15 +10,13 @@
 
     const currentHostname = window.location.hostname.toLowerCase();
 
-    // Check storage local for latest state
-    chrome.storage.local.get(["extensionState"], (result) => {
-        if (chrome.runtime.lastError) return;
-        if (!result || !result.extensionState) return;
+    function checkAndRedirect(extensionState) {
+        if (!extensionState) return;
 
-        const { currentState, blockedDomains } = result.extensionState;
+        const { currentState, blockedDomains } = extensionState;
 
-        // Only redirect if state is NOT REWARD and there are domains configured
-        const shouldBlock = (currentState === "IDLE" || currentState === "WORK" || currentState === "AWAITING_CONFIRMATION");
+        // Block under IDLE, WORK, AWAITING_CONFIRMATION, and BREAK
+        const shouldBlock = (currentState === "IDLE" || currentState === "WORK" || currentState === "AWAITING_CONFIRMATION" || currentState === "BREAK");
         if (!shouldBlock || !blockedDomains || blockedDomains.length === 0) {
             return;
         }
@@ -33,6 +31,24 @@
             console.warn("Pomodoro Blocker: Access denied. Redirecting to concentration screen.");
             // Stop page execution by immediately redirecting
             window.location.replace(chrome.runtime.getURL("blocked.html?original=" + encodeURIComponent(currentUrl)));
+        }
+    }
+
+    // Check immediately on script load
+    chrome.storage.local.get(["extensionState"], (result) => {
+        if (chrome.runtime.lastError) return;
+        if (result && result.extensionState) {
+            checkAndRedirect(result.extensionState);
+        }
+    });
+
+    // Listen for storage changes in real-time to block open tabs instantly when state transitions
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (changes.extensionState) {
+            const newState = changes.extensionState.newValue;
+            if (newState) {
+                checkAndRedirect(newState);
+            }
         }
     });
 })();

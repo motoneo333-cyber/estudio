@@ -11,9 +11,12 @@ const estimatedRewardDisplay = document.getElementById("estimated-reward");
 
 const workDurationMinInput = document.getElementById("work-duration-min");
 const workDurationSecInput = document.getElementById("work-duration-sec");
+const breakDurationMinInput = document.getElementById("break-duration-min");
+const breakDurationSecInput = document.getElementById("break-duration-sec");
 
 const btnStart = document.getElementById("btn-start");
 const btnConfirm = document.getElementById("btn-confirm");
+const btnUseReward = document.getElementById("btn-use-reward");
 const btnReset = document.getElementById("btn-reset");
 
 const addDomainForm = document.getElementById("add-domain-form");
@@ -23,10 +26,10 @@ const blockedCount = document.getElementById("blocked-count");
 
 // State Definition
 let state = {
-    currentState: "IDLE", // IDLE, WORK, AWAITING_CONFIRMATION, REWARD
-    targetTimestamp: 0,   // Target timestamp when current phase ends (for WORK and REWARD)
-    totalDurationMs: 0,   // Total duration of current phase (for progress ring & calculations)
-    rewardBalanceMs: 0,   // Accumulated reward time in ms
+    currentState: "IDLE", // IDLE, WORK, AWAITING_CONFIRMATION, BREAK, REWARD
+    targetTimestamp: 0,   // Target timestamp when current phase ends
+    totalDurationMs: 0,   // Total duration of current phase
+    rewardBalanceMs: 0,   // Accumulated reward time in ms (waiting to be used)
     completedWorkMs: 0,   // Work duration waiting to be confirmed
     blockedDomains: ["youtube.com", "facebook.com", "twitter.com", "instagram.com"] // Defaults
 };
@@ -43,7 +46,6 @@ function loadState() {
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
-            // Re-hydrate state fields
             state = { ...state, ...parsed };
         } catch (e) {
             console.error("Error reading saved state, resetting to default.", e);
@@ -103,9 +105,12 @@ function renderUI() {
     } else if (state.currentState === "AWAITING_CONFIRMATION") {
         stateBadge.classList.add("bg-orange-500/20", "text-orange-400", "border", "border-orange-500/30");
         timerStateLabel.textContent = "Sesión Completada - Esperando Confirmación";
+    } else if (state.currentState === "BREAK") {
+        stateBadge.classList.add("bg-blue-500/20", "text-blue-400", "border", "border-blue-500/30");
+        timerStateLabel.textContent = "Tiempo de Descanso Activo";
     } else if (state.currentState === "REWARD") {
         stateBadge.classList.add("bg-emerald-500/20", "text-emerald-400", "border", "border-emerald-500/30");
-        timerStateLabel.textContent = "¡Tiempo de Recompensa Activo!";
+        timerStateLabel.textContent = "¡Tiempo de Recompensa Activo! (Páginas Desbloqueadas)";
     }
 
     // 2. Buttons visibility
@@ -114,31 +119,63 @@ function renderUI() {
         btnConfirm.classList.add("hidden");
         btnReset.classList.add("hidden");
 
+        // Show/hide use reward based on balance
+        if (state.rewardBalanceMs > 0) {
+            btnUseReward.classList.remove("hidden");
+        } else {
+            btnUseReward.classList.add("hidden");
+        }
+
         // Enable config inputs
         workDurationMinInput.disabled = false;
         workDurationSecInput.disabled = false;
+        breakDurationMinInput.disabled = false;
+        breakDurationSecInput.disabled = false;
     } else if (state.currentState === "WORK") {
         btnStart.classList.add("hidden");
         btnConfirm.classList.add("hidden");
+        btnUseReward.classList.add("hidden");
         btnReset.classList.remove("hidden");
 
-        // Disable config inputs
         workDurationMinInput.disabled = true;
         workDurationSecInput.disabled = true;
+        breakDurationMinInput.disabled = true;
+        breakDurationSecInput.disabled = true;
     } else if (state.currentState === "AWAITING_CONFIRMATION") {
         btnStart.classList.add("hidden");
         btnConfirm.classList.remove("hidden");
+        btnUseReward.classList.add("hidden");
         btnReset.classList.remove("hidden");
 
         workDurationMinInput.disabled = true;
         workDurationSecInput.disabled = true;
-    } else if (state.currentState === "REWARD") {
+        breakDurationMinInput.disabled = true;
+        breakDurationSecInput.disabled = true;
+    } else if (state.currentState === "BREAK") {
         btnStart.classList.add("hidden");
         btnConfirm.classList.add("hidden");
         btnReset.classList.remove("hidden");
 
+        if (state.rewardBalanceMs > 0) {
+            btnUseReward.classList.remove("hidden");
+        } else {
+            btnUseReward.classList.add("hidden");
+        }
+
         workDurationMinInput.disabled = true;
         workDurationSecInput.disabled = true;
+        breakDurationMinInput.disabled = true;
+        breakDurationSecInput.disabled = true;
+    } else if (state.currentState === "REWARD") {
+        btnStart.classList.add("hidden");
+        btnConfirm.classList.add("hidden");
+        btnUseReward.classList.add("hidden");
+        btnReset.classList.remove("hidden");
+
+        workDurationMinInput.disabled = true;
+        workDurationSecInput.disabled = true;
+        breakDurationMinInput.disabled = true;
+        breakDurationSecInput.disabled = true;
     }
 
     // 3. Reward Display
@@ -205,6 +242,14 @@ function updateClockAndProgress() {
     } else if (state.currentState === "AWAITING_CONFIRMATION") {
         displayMs = 0;
         percent = 0;
+    } else if (state.currentState === "BREAK") {
+        const remaining = state.targetTimestamp - Date.now();
+        displayMs = Math.max(0, remaining);
+        if (state.totalDurationMs > 0) {
+            percent = displayMs / state.totalDurationMs;
+        } else {
+            percent = 0;
+        }
     } else if (state.currentState === "REWARD") {
         const remaining = state.targetTimestamp - Date.now();
         displayMs = Math.max(0, remaining);
@@ -253,11 +298,45 @@ function confirmReward() {
     // Reward calculation: exactly N / 2 ms gained for each N ms of work completed and confirmed.
     const rewardGained = state.completedWorkMs / 2;
     state.rewardBalanceMs = (state.rewardBalanceMs || 0) + rewardGained;
+    state.completedWorkMs = 0;
+
+    // Now transition immediately to BREAK state (Tiempo de Descanso)!
+    const breakMins = parseInt(breakDurationMinInput.value) || 0;
+    const breakSecs = parseInt(breakDurationSecInput.value) || 0;
+    const breakDurationMs = (breakMins * 60 + breakSecs) * 1000;
+
+    if (breakDurationMs > 0) {
+        state.currentState = "BREAK";
+        state.totalDurationMs = breakDurationMs;
+        state.targetTimestamp = Date.now() + breakDurationMs;
+    } else {
+        // Fallback to IDLE if no break duration set
+        state.currentState = "IDLE";
+        state.totalDurationMs = 0;
+        state.targetTimestamp = 0;
+    }
+
+    saveState();
+    broadcastState();
+    renderUI();
+
+    if (state.currentState === "BREAK") {
+        startTimerLoop();
+    } else {
+        stopTimerLoop();
+    }
+}
+
+function useReward() {
+    if (state.currentState !== "IDLE" && state.currentState !== "BREAK") return;
+    if (state.rewardBalanceMs <= 0) {
+        alert("No tienes saldo de recompensa acumulado.");
+        return;
+    }
 
     state.currentState = "REWARD";
     state.totalDurationMs = state.rewardBalanceMs;
     state.targetTimestamp = Date.now() + state.rewardBalanceMs;
-    state.completedWorkMs = 0;
 
     saveState();
     broadcastState();
@@ -272,8 +351,7 @@ function resetTimer() {
     state.targetTimestamp = 0;
     state.totalDurationMs = 0;
     state.completedWorkMs = 0;
-    // Note: We preserve the reward balance on reset, or can we reset it too? Let's keep the existing balance.
-    // If resetting during REWARD state, the remaining reward is set to 0.
+
     if (wasInReward) {
         state.rewardBalanceMs = 0;
     }
@@ -294,8 +372,6 @@ function startTimerLoop() {
 
         if (state.currentState === "WORK") {
             const remaining = state.targetTimestamp - now;
-
-            // Save state / update on every tick to ensure localStorage is perfectly synchronized
             saveState();
 
             if (remaining <= 0) {
@@ -303,6 +379,22 @@ function startTimerLoop() {
                 state.currentState = "AWAITING_CONFIRMATION";
                 state.completedWorkMs = state.totalDurationMs; // Record completed work N
                 state.targetTimestamp = 0;
+
+                stopTimerLoop();
+                saveState();
+                broadcastState();
+                renderUI();
+                return;
+            }
+        } else if (state.currentState === "BREAK") {
+            const remaining = state.targetTimestamp - now;
+            saveState();
+
+            if (remaining <= 0) {
+                // Break timer finished! Transitions back to IDLE
+                state.currentState = "IDLE";
+                state.targetTimestamp = 0;
+                state.totalDurationMs = 0;
 
                 stopTimerLoop();
                 saveState();
@@ -318,7 +410,7 @@ function startTimerLoop() {
             saveState();
 
             if (remaining <= 0) {
-                // Reward timer finished!
+                // Reward timer finished! Transitions back to IDLE and locks again!
                 state.currentState = "IDLE";
                 state.rewardBalanceMs = 0;
                 state.targetTimestamp = 0;
@@ -352,19 +444,26 @@ function recoverSession() {
     if (state.currentState === "WORK") {
         const remaining = state.targetTimestamp - now;
         if (remaining <= 0) {
-            // Finished while page was closed
             state.currentState = "AWAITING_CONFIRMATION";
             state.completedWorkMs = state.totalDurationMs;
             state.targetTimestamp = 0;
             saveState();
         } else {
-            // Continue timer
+            startTimerLoop();
+        }
+    } else if (state.currentState === "BREAK") {
+        const remaining = state.targetTimestamp - now;
+        if (remaining <= 0) {
+            state.currentState = "IDLE";
+            state.targetTimestamp = 0;
+            state.totalDurationMs = 0;
+            saveState();
+        } else {
             startTimerLoop();
         }
     } else if (state.currentState === "REWARD") {
         const remaining = state.targetTimestamp - now;
         if (remaining <= 0) {
-            // Reward ended while closed
             state.currentState = "IDLE";
             state.rewardBalanceMs = 0;
             state.targetTimestamp = 0;
@@ -382,13 +481,13 @@ function recoverSession() {
 // Event Listeners
 btnStart.addEventListener("click", startWork);
 btnConfirm.addEventListener("click", confirmReward);
+btnUseReward.addEventListener("click", useReward);
 btnReset.addEventListener("click", resetTimer);
 
 addDomainForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const domain = domainInput.value.trim().toLowerCase();
 
-    // Quick validation
     if (domain && !state.blockedDomains.includes(domain)) {
         state.blockedDomains.push(domain);
         saveState();
@@ -412,7 +511,6 @@ workDurationSecInput.addEventListener("input", updateEstimatedReward);
 
 // Receive sync request messages from content/background script if needed
 window.addEventListener("message", (event) => {
-    // Only accept messages from ourselves or from content script
     if (event.data && event.data.source === "pomodoro-extension" && event.data.action === "REQUEST_SYNC") {
         broadcastState();
     }

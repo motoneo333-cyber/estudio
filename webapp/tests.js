@@ -33,6 +33,13 @@ class PomodoroFSM {
                 this.completedWorkMs = this.totalDurationMs;
                 this.targetTimestamp = 0;
             }
+        } else if (this.currentState === "BREAK") {
+            const remaining = this.targetTimestamp - currentTime;
+            if (remaining <= 0) {
+                this.currentState = "IDLE";
+                this.targetTimestamp = 0;
+                this.totalDurationMs = 0;
+            }
         } else if (this.currentState === "REWARD") {
             const remaining = this.targetTimestamp - currentTime;
             this.rewardBalanceMs = Math.max(0, remaining);
@@ -45,25 +52,44 @@ class PomodoroFSM {
         }
     }
 
-    confirmReward() {
+    confirmReward(breakMins, breakSecs) {
         if (this.currentState !== "AWAITING_CONFIRMATION") return;
 
         // Exact N / 2 reward formula
         const rewardGained = this.completedWorkMs / 2;
         this.rewardBalanceMs = (this.rewardBalanceMs || 0) + rewardGained;
+        this.completedWorkMs = 0;
+
+        const breakDurationMs = (breakMins * 60 + breakSecs) * 1000;
+        if (breakDurationMs > 0) {
+            this.currentState = "BREAK";
+            this.totalDurationMs = breakDurationMs;
+            this.targetTimestamp = Date.now() + breakDurationMs;
+        } else {
+            this.currentState = "IDLE";
+            this.totalDurationMs = 0;
+            this.targetTimestamp = 0;
+        }
+    }
+
+    useReward() {
+        if (this.currentState !== "IDLE" && this.currentState !== "BREAK") return;
+        if (this.rewardBalanceMs <= 0) return;
 
         this.currentState = "REWARD";
         this.totalDurationMs = this.rewardBalanceMs;
         this.targetTimestamp = Date.now() + this.rewardBalanceMs;
-        this.completedWorkMs = 0;
     }
 
     reset() {
+        const wasInReward = this.currentState === "REWARD";
         this.currentState = "IDLE";
         this.targetTimestamp = 0;
         this.totalDurationMs = 0;
         this.completedWorkMs = 0;
-        this.rewardBalanceMs = 0;
+        if (wasInReward) {
+            this.rewardBalanceMs = 0;
+        }
     }
 
     recover(savedState, currentTime) {
@@ -79,6 +105,13 @@ class PomodoroFSM {
                 this.currentState = "AWAITING_CONFIRMATION";
                 this.completedWorkMs = this.totalDurationMs;
                 this.targetTimestamp = 0;
+            }
+        } else if (this.currentState === "BREAK") {
+            const remaining = this.targetTimestamp - currentTime;
+            if (remaining <= 0) {
+                this.currentState = "IDLE";
+                this.targetTimestamp = 0;
+                this.totalDurationMs = 0;
             }
         } else if (this.currentState === "REWARD") {
             const remaining = this.targetTimestamp - currentTime;
@@ -114,18 +147,23 @@ try {
     assert.strictEqual(fsm.completedWorkMs, 600000);
     assert.strictEqual(fsm.rewardBalanceMs, 0); // Should remain 0 BEFORE confirmation!
 
-    // 4. Confirm Reward (Manual confirmation)
-    fsm.confirmReward();
-    assert.strictEqual(fsm.currentState, "REWARD");
+    // 4. Confirm Reward (transitions to BREAK state, and does NOT auto-start reward)
+    fsm.confirmReward(5, 0); // 5 minutes break
+    assert.strictEqual(fsm.currentState, "BREAK");
     assert.strictEqual(fsm.rewardBalanceMs, 300000); // 600,000 / 2 = 300,000 ms (exactly 5 minutes)
     assert.strictEqual(fsm.completedWorkMs, 0);
 
-    // 5. Complete reward
+    // 5. Use Reward (Can trigger manual reward from BREAK or IDLE)
+    fsm.useReward();
+    assert.strictEqual(fsm.currentState, "REWARD");
+    assert.strictEqual(fsm.totalDurationMs, 300000);
+
+    // 6. Complete reward
     fsm.tick(fsm.targetTimestamp);
     assert.strictEqual(fsm.currentState, "IDLE");
     assert.strictEqual(fsm.rewardBalanceMs, 0);
 
-    // 6. Test persistence and recovery (F5 reload)
+    // 7. Test persistence and recovery (F5 reload)
     const fsm2 = new PomodoroFSM();
     fsm2.startWork(25, 0); // 1,500,000 ms
     const saved = {
@@ -150,7 +188,7 @@ try {
     assert.strictEqual(recoveredFsm2.currentState, "AWAITING_CONFIRMATION");
     assert.strictEqual(recoveredFsm2.completedWorkMs, 1500000);
 
-    console.log("✅ All FSM and business logic unit tests passed successfully!");
+    console.log("✅ All new FSM, Break state, and 'Usar Recompensa' unit tests passed successfully!");
 } catch (error) {
     console.error("❌ Test failed:", error);
     process.exit(1);

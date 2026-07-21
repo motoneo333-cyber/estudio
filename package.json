@@ -1,5 +1,14 @@
 {
+  "name": "pomodoro-lock-reward",
+  "version": "1.0.0",
+  "description": "Pomodoro Web App connected to a Manifest V3 browser extension for dynamic site blocking",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js",
+    "server": "node webapp/server.js",
+    "test": "node webapp/tests.js"
+  },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^4.21.2"
   }
 }
