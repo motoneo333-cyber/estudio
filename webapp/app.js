@@ -418,6 +418,35 @@ window.addEventListener("message", (event) => {
     }
 });
 
+// Modal Logic for Installation Instructions
+const btnShowInstructions = document.getElementById("btn-show-instructions");
+const instructionsModal = document.getElementById("instructions-modal");
+const btnCloseModal = document.getElementById("btn-close-modal");
+const btnCloseModalBottom = document.getElementById("btn-close-modal-bottom");
+
+if (btnShowInstructions && instructionsModal) {
+    btnShowInstructions.addEventListener("click", () => {
+        instructionsModal.classList.remove("hidden");
+    });
+}
+
+const hideModal = () => {
+    if (instructionsModal) {
+        instructionsModal.classList.add("hidden");
+    }
+};
+
+if (btnCloseModal) btnCloseModal.addEventListener("click", hideModal);
+if (btnCloseModalBottom) btnCloseModalBottom.addEventListener("click", hideModal);
+
+if (instructionsModal) {
+    instructionsModal.addEventListener("click", (e) => {
+        if (e.target === instructionsModal) {
+            hideModal();
+        }
+    });
+}
+
 // Initialization
 recoverSession();
 updateEstimatedReward();

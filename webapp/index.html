@@ -27,10 +27,10 @@
             </div>
             <div class="flex items-center space-x-3">
                 <!-- Botón descargar extensión -->
-                <a href="pomodoro-extension.zip" download="pomodoro-extension.zip" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors flex items-center space-x-1 shadow-lg shadow-indigo-500/10">
+                <button id="btn-show-instructions" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors flex items-center space-x-1 shadow-lg shadow-indigo-500/10">
                     <span>🔌</span>
-                    <span>Descargar Extensión</span>
-                </a>
+                    <span>Instalar Extensión</span>
+                </button>
                 <div class="h-6 w-[1px] bg-slate-800"></div>
                 <span class="text-sm text-slate-400">Estado:</span>
                 <span id="state-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-slate-300">
@@ -39,6 +39,63 @@
             </div>
         </div>
     </header>
+
+    <!-- Modal de Instrucciones de Instalación -->
+    <div id="instructions-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
+            <button id="btn-close-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors text-xl font-bold">
+                &times;
+            </button>
+            <div class="text-center mb-6">
+                <span class="text-4xl">🔌</span>
+                <h2 class="text-xl font-bold mt-2 text-slate-100">Guía de Instalación Rápida</h2>
+                <p class="text-xs text-slate-400 mt-1">Por seguridad del navegador, las extensiones de desarrollo se instalan manualmente en 4 sencillos pasos:</p>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300">
+                <div class="flex items-start space-x-3">
+                    <span class="bg-indigo-600/20 text-indigo-400 font-bold px-2 py-0.5 rounded-full text-xs mt-0.5">1</span>
+                    <div>
+                        <p class="font-semibold text-slate-200">Descarga el paquete</p>
+                        <p class="text-xs text-slate-400">Haz clic en el botón de abajo para bajar la extensión comprimida.</p>
+                        <a href="pomodoro-extension.zip" download="pomodoro-extension.zip" class="inline-flex items-center space-x-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold mt-1">
+                            <span>⬇️</span> Descargar pomodoro-extension.zip
+                        </a>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <span class="bg-indigo-600/20 text-indigo-400 font-bold px-2 py-0.5 rounded-full text-xs mt-0.5">2</span>
+                    <div>
+                        <p class="font-semibold text-slate-200">Descomprime el archivo</p>
+                        <p class="text-xs text-slate-400">Extrae el contenido de la carpeta ZIP descargada en tu computadora.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <span class="bg-indigo-600/20 text-indigo-400 font-bold px-2 py-0.5 rounded-full text-xs mt-0.5">3</span>
+                    <div>
+                        <p class="font-semibold text-slate-200">Activa Modo de Desarrollador</p>
+                        <p class="text-xs text-slate-400">Abre una pestaña en tu navegador, ve a <code class="bg-slate-900 text-red-400 px-1 py-0.5 rounded font-mono">chrome://extensions</code> y activa el interruptor "Modo de desarrollador" en la esquina superior derecha.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <span class="bg-indigo-600/20 text-indigo-400 font-bold px-2 py-0.5 rounded-full text-xs mt-0.5">4</span>
+                    <div>
+                        <p class="font-semibold text-slate-200">Carga la extensión</p>
+                        <p class="text-xs text-slate-400">Haz clic en el botón "Cargar descomprimida" (Load unpacked) arriba a la izquierda y selecciona la carpeta descomprimida.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <button id="btn-close-modal-bottom" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl transition-colors">
+                    Entendido, ¡Listo!
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <main class="max-w-5xl mx-auto px-4 py-8 flex-grow grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
